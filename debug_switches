@@ -1,0 +1,101 @@
+/* ============================================================================
+    PROJECT: Dynamic Open World Engine (DOWE)
+    VERSION: 2.0 (Master Build)
+    PLATFORM: Neverwinter Nights: Enhanced Edition (NWN:EE)
+    DATE: February 11, 2026
+    Script Name: debug_switches
+    
+    PILLARS:
+    1. Independent Mini-Servers Architecture
+    2. Phase-Staggered Performance Optimization
+    3. Total Resource Management (Zero-Waste)
+    
+    DESCRIPTION:
+    A dedicated, standalone chat-command listener. This script is isolated 
+    from the main debug logging system to ensure core engine toggles 
+    remain accessible even during high-load logging scenarios.
+    
+    COMMANDS:
+    /*status           - Reports all engine states
+    /*encounter on/off - Toggles DSE v7.0
+    /*craft on/off     - Toggles Crafting System
+    /*debug on/off     - Toggles Global Debug Messages
+   ============================================================================
+*/
+
+// --- VIP LIST AUTHENTICATION ---
+// Logic: Identifies if the user has been flagged as a VIP in the DOWE Database.
+int GetIsVIP(object oPC) {
+    return GetLocalInt(oPC, "VIP_USER");
+}
+
+// --- PHASE-STAGGERED FEEDBACK ---
+// Logic: Sends messages to the player with a slight delay to ensure the 
+// chat bubble doesn't interfere with the system message.
+void StaggeredNotify(object oPC, string sMsg, float fDelay) {
+    DelayCommand(fDelay, SendMessageToPC(oPC, sMsg));
+}
+
+void main() {
+    // PHASE 1: Data Capture & Zero-Waste Filtering
+    object oPC = GetPCChatSpeaker();
+    string sRawMessage = GetPCChatMessage();
+    string sMessage = GetStringLowerCase(sRawMessage);
+    object oMod = GetModule();
+
+    // If the message does not start with the command prefix, terminate immediately.
+    if (GetSubString(sMessage, 0, 2) != "/*") return;
+
+    // PHASE 2: VIP Security Check
+    // This script operates independently of the standard DM list if the VIP_USER flag is present.
+    if (!GetIsVIP(oPC) && !GetIsDM(oPC)) {
+        StaggeredNotify(oPC, "DOWE SECURITY: Access Denied. Command ignored.", 0.1);
+        SetPCChatMessage(""); // Clean the chat logs
+        return;
+    }
+
+    // PHASE 3: Parsing Command Strings
+    int nSpace = FindSubString(sMessage, " ");
+    string sSystem;
+    string sState;
+
+    if (nSpace == -1) {
+        sSystem = GetSubString(sMessage, 2, GetStringLength(sMessage) - 2);
+    } else {
+        sSystem = GetSubString(sMessage, 2, nSpace - 2);
+        sState = GetSubString(sMessage, nSpace + 1, GetStringLength(sMessage) - nSpace);
+    }
+
+    // Clear the chat message so it doesn't broadcast to other players.
+    SetPCChatMessage("");
+
+    // PHASE 4: Execute System Toggles (Independent Logic)
+    if (sSystem == "status") {
+        int nEnc = GetLocalInt(oMod, "DOWE_SYSTEM_ENCOUNTER_ACTIVE");
+        int nCrft = GetLocalInt(oMod, "DOWE_SYSTEM_CRAFT_ACTIVE");
+        int nDbug = GetLocalInt(oMod, "DOWE_DEBUG_ACTIVE");
+        
+        StaggeredNotify(oPC, "--- DOWE ENGINE: STANDALONE STATUS REPORT ---", 0.1);
+        StaggeredNotify(oPC, "SYSTEM [ENCOUNTER]: " + (nEnc ? "ACTIVE" : "DISABLED"), 0.2);
+        StaggeredNotify(oPC, "SYSTEM [CRAFTING]: " + (nCrft ? "ACTIVE" : "DISABLED"), 0.3);
+        StaggeredNotify(oPC, "SYSTEM [DEBUG]: " + (nDbug ? "VERBOSE" : "SILENT"), 0.4);
+    }
+    else if (sSystem == "encounter") {
+        int bNew = (sState == "on");
+        SetLocalInt(oMod, "DOWE_SYSTEM_ENCOUNTER_ACTIVE", bNew);
+        StaggeredNotify(oPC, "DOWE: Encounter Engine is now " + (bNew ? "ONLINE" : "OFFLINE"), 0.1);
+    }
+    else if (sSystem == "craft") {
+        int bNew = (sState == "on");
+        SetLocalInt(oMod, "DOWE_SYSTEM_CRAFT_ACTIVE", bNew);
+        StaggeredNotify(oPC, "DOWE: Crafting Engine is now " + (bNew ? "ONLINE" : "OFFLINE"), 0.1);
+    }
+    else if (sSystem == "debug") {
+        int bNew = (sState == "on");
+        SetLocalInt(oMod, "DOWE_DEBUG_ACTIVE", bNew);
+        StaggeredNotify(oPC, "DOWE: Global Debug Messaging set to " + (bNew ? "ON" : "OFF"), 0.1);
+    }
+    else {
+        StaggeredNotify(oPC, "DOWE: Unknown switch '" + sSystem + "'.", 0.1);
+    }
+}
