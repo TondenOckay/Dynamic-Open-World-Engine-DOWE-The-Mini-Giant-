@@ -1,0 +1,55 @@
+/* ============================================================================
+    PROJECT: Dynamic Open World Engine (DOWE) “The Mini Giant”
+    VERSION: 1.0 (Master Build)
+    DATE: February 11, 2026
+    PLATFORM: Neverwinter Nights: Enhanced Edition (NWN:EE)
+    Script Name: enc_spawn
+    DESCRIPTION: Phase 2 of GPS logic. Determines WHAT and WHERE to spawn.
+   ============================================================================
+*/
+
+void main()
+{
+    object oArea = OBJECT_SELF;
+    object oPC = GetLocalObject(oArea, "MG_SW_TARGET");
+    
+    // PHASE 1: ENVIRONMENTAL CHECK
+    // Get surface material to determine which 2DA column to use.
+    int nSurface = GetSurfaceMaterial(GetLocation(oPC)); 
+    
+    // PHASE 2: RARITY ROLL
+    int nRoll = Random(100) + 1;
+    int nTier; // 1=Common, 2=Uncommon, 3=Rare
+    if (nRoll > 95) nTier = 3;
+    else if (nRoll > 70) nTier = 2;
+    else nTier = 1;
+
+    // PHASE 3: DISTANCE & VECTOR MATH
+    int nDistRoll = Random(100) + 1;
+    float fDist;
+    if (nDistRoll <= 15) fDist = 5.0;
+    else if (nDistRoll <= 85) fDist = 15.0; // 10m-20m range
+    else fDist = 30.0;
+
+    vector vPos = GetPosition(oPC);
+    float fAngle = IntToFloat(Random(360));
+    vector vSpawn = vPos + AngleToVector(fAngle) * fDist;
+    location lFinal = Location(oArea, vSpawn, 0.0);
+
+    // PHASE 4: SPAWN EXECUTION (Staggered)
+    int nNum = Random(6) + 1;
+    int i;
+    for (i = 1; i <= nNum; i++)
+    {
+        float fStag = i * 0.2;
+        // We use a local string for the ResRef (Replace with your 2DA lookup logic).
+        string sRes = "nw_wolf001"; 
+
+        DelayCommand(fStag, AssignCommand(oArea, CreateObject(OBJECT_TYPE_CREATURE, sRes, lFinal)));
+        
+        // Add to the GPS List (Phase 5: Registration)
+        float fReg = fStag + 0.5;
+        DelayCommand(fReg, SetLocalObject(oArea, "MG_REG_TARGET", GetNearestObjectByTag(sRes, oPC)));
+        DelayCommand(fReg + 0.01, ExecuteScript("enc_register", oArea));
+    }
+}
