@@ -30,29 +30,16 @@ void main()
     if (!GetIsPC(oPC) || GetIsDM(oPC)) return;
 
     // PHASE 2: SWITCHBOARD HANDSHAKE (Staggered 0.1s)
-    // We do not run registration here. We tell the Switchboard to do it.
-    DelayCommand(0.1f, [oArea, oPC]()
-    {
-        // Pack the data for the Switchboard.
-        SetLocalObject(oArea, "MG_SW_TARGET", oPC);
-        SetLocalInt(oArea, "MG_SW_EVENT", 100); // 100 = Registration Request
-        
-        // Execute the central router.
-        ExecuteScript("area_switchboard", oArea);
-    });
+    // Notes: Removed [] syntax to fix 'PARSING CONSTANT VECTOR' error.
+    // We set variables on the area, then call the switchboard.
+    float fStagger = 0.1;
+    DelayCommand(fStagger, SetLocalObject(oArea, "MG_SW_TARGET", oPC));
+    DelayCommand(fStagger, SetLocalInt(oArea, "MG_SW_EVENT", 100)); // 100 = Registration Request
+    
+    // Execute the central router with a tiny 0.01s offset to ensure variables are set.
+    DelayCommand(fStagger + 0.01, ExecuteScript("area_switchboard", oArea));
 
     // PHASE 3: SERVER STATUS CHECK (Staggered 0.5s)
     // If the server is currently "OFF" (Zero-Waste), we ignite the heartbeat.
-    DelayCommand(0.5f, [oArea]()
-    {
-        if (GetLocalInt(oArea, "MG_SERVER_ACTIVE") == FALSE)
-        {
-            // Mini-server is now turning on.
-            SetLocalInt(oArea, "MG_SERVER_ACTIVE", TRUE);
-            
-            // Execute the Heartbeat through the Switchboard.
-            SetLocalInt(oArea, "MG_SW_EVENT", 200); // 200 = Heartbeat Ignition
-            ExecuteScript("area_switchboard", oArea);
-        }
-    });
+    DelayCommand(0.5, ExecuteScript("area_heartbeat", oArea));
 }
