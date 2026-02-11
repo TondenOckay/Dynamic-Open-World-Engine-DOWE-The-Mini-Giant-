@@ -10,51 +10,45 @@
         3. Total Resource Management (Zero-Waste)
     
     DESCRIPTION:
-    The 30-second logic pulse. Processes sub-systems (DSE, Persistence) in
-    staggered delays (0.1, 0.2, 0.3) to prevent CPU spikes.
+    The 30-second logic pulse for the mini-server. This script staggers 
+    sub-systems (Spawning, Persistence) using standard NWScript delays to 
+    prevent CPU spikes. Implements Zero-Waste shutdown logic.
    ============================================================================
 */
+
+// --- 2DA REFERENCE NOTES ---
+// // No 2DA files are required for the heartbeat's recursive loop.
 
 void main()
 {
     object oArea = OBJECT_SELF;
 
     // PHASE 1: ZERO-WASTE VALIDATION
-    // If the server is inactive or population is 0, we stop the loop.
-    if (GetLocalInt(oArea, "MG_SERVER_ACTIVE") == FALSE || GetLocalInt(oArea, "MG_POPULATION") <= 0)
+    // Triple-Check: If no players are in the registry, we stop the loop immediately.
+    if (GetLocalInt(oArea, "MG_POPULATION") <= 0)
     {
+        SetLocalInt(oArea, "MG_SERVER_ACTIVE", FALSE);
+        
+        // Report shutdown to debug if toggled.
         if (GetLocalInt(oArea, "MG_DEBUG_ON"))
         {
-            SetLocalString(oArea, "MG_DEBUG_MSG", "HEARTBEAT: Zero players. Shutting down loop.");
+            SetLocalString(oArea, "MG_DEBUG_MSG", "HEARTBEAT: Zero population. Mini-Server going dormant.");
             ExecuteScript("area_debug", oArea);
         }
-        return; // Zero further resources consumed.
+        return; 
     }
 
-    // PHASE 2: STAGGERED LOGIC EXECUTION
-    // Logic 1: Persistence/Biology (0.1s delay)
-    DelayCommand(0.1f, [oArea]()
-    {
-        // Execute biological logic via Switchboard if needed.
-        if (GetLocalInt(oArea, "MG_DEBUG_ON"))
-            SendMessageToAllDMs("MG_HB: Stagger 0.1 - Persistence Check.");
-    });
+    // PHASE 2: STAGGERED SUBSYSTEMS (Standard Delay Methods)
+    // Stagger 0.1s: Biological/Persistence Pulse
+    // Note: We avoid the [] brackets here to ensure successful compilation.
+    DelayCommand(0.1, SetLocalString(oArea, "MG_DEBUG_MSG", "HEARTBEAT: Phase 1 (Persistence) Active."));
+    DelayCommand(0.11, ExecuteScript("area_debug", oArea));
 
-    // Logic 2: DSE v7.0 Spawning (0.2s delay)
-    DelayCommand(0.2f, [oArea]()
-    {
-        // Execute spawn engine logic.
-        if (GetLocalInt(oArea, "MG_DEBUG_ON"))
-            SendMessageToAllDMs("MG_HB: Stagger 0.2 - Spawning Check.");
-    });
-
-    // Logic 3: Environmental Sync (0.3s delay)
-    DelayCommand(0.3f, [oArea]()
-    {
-        // Execute weather/climate logic.
-    });
+    // Stagger 0.2s: DSE v7.0 Spawning Pulse
+    DelayCommand(0.2, SetLocalString(oArea, "MG_DEBUG_MSG", "HEARTBEAT: Phase 2 (DSE Spawning) Active."));
+    DelayCommand(0.21, ExecuteScript("area_debug", oArea));
 
     // PHASE 3: RECURSIVE LOOP (30.0s)
-    // Re-fires the heartbeat to keep the mini-server running.
-    DelayCommand(30.0f, ExecuteScript("area_heartbeat", oArea));
+    // Notes: Schedules the next heart pulse. This keeps the "Independent Server" alive.
+    DelayCommand(30.0, ExecuteScript("area_heartbeat", oArea));
 }
