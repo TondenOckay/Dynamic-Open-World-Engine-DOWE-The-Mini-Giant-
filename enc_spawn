@@ -1,55 +1,68 @@
 /* ============================================================================
     PROJECT: Dynamic Open World Engine (DOWE) “The Mini Giant”
-    VERSION: 1.0 (Master Build)
+    VERSION: 1.1 (Master Build - Safety Merged)
     DATE: February 11, 2026
     PLATFORM: Neverwinter Nights: Enhanced Edition (NWN:EE)
     Script Name: enc_spawn
-    DESCRIPTION: Phase 2 of GPS logic. Determines WHAT and WHERE to spawn.
+    PILLARS: 
+        1. Environmental Reactivity (Surface Checks)
+        2. Phase-Staggered Performance Optimization 
+        3. Total Resource Management (Safe Spawning)
+    
+    DESCRIPTION:
+    Determines rarity based on rolls, checks surface material, validates
+    that the spawn isn't in a wall, and enforces the "One-Encounter-Only" rule.
    ============================================================================
 */
 
 void main()
 {
+    // PHASE 1: DATA & CAP VALIDATION
     object oArea = OBJECT_SELF;
     object oPC = GetLocalObject(oArea, "MG_SW_TARGET");
     
-    // PHASE 1: ENVIRONMENTAL CHECK
-    // Get surface material to determine which 2DA column to use.
-    int nSurface = GetSurfaceMaterial(GetLocation(oPC)); 
-    
-    // PHASE 2: RARITY ROLL
-    int nRoll = Random(100) + 1;
-    int nTier; // 1=Common, 2=Uncommon, 3=Rare
-    if (nRoll > 95) nTier = 3;
-    else if (nRoll > 70) nTier = 2;
-    else nTier = 1;
+    // Safety: Prevent "Gank-Loop" (One active encounter per player name).
+    if (GetLocalInt(oPC, "MG_ENC_ACTIVE") == TRUE) return;
 
-    // PHASE 3: DISTANCE & VECTOR MATH
+    // PHASE 2: ENVIRONMENTAL & RARITY (From your version)
+    int nSurface = GetSurfaceMaterial(GetLocation(oPC)); 
+    int nRoll = Random(100) + 1;
+    int nTier = 1; // Default Common
+    if (nRoll > 95) nTier = 3;      // Rare
+    else if (nRoll > 70) nTier = 2; // Uncommon
+
+    // PHASE 3: DISTANCE & WALL CHECK (Safety Patch)
     int nDistRoll = Random(100) + 1;
-    float fDist;
+    float fDist = 15.0; 
     if (nDistRoll <= 15) fDist = 5.0;
-    else if (nDistRoll <= 85) fDist = 15.0; // 10m-20m range
-    else fDist = 30.0;
+    else if (nDistRoll > 85) fDist = 30.0;
 
     vector vPos = GetPosition(oPC);
     float fAngle = IntToFloat(Random(360));
-    vector vSpawn = vPos + AngleToVector(fAngle) * fDist;
-    location lFinal = Location(oArea, vSpawn, 0.0);
+    vector vTarget = vPos + AngleToVector(fAngle) * fDist;
 
-    // PHASE 4: SPAWN EXECUTION (Staggered)
+    // Triple Check: Ensure spawn isn't in a wall or void.
+    if (LineOfSightVector(vPos, vTarget) == FALSE)
+    {
+        // Emergency adjustment: pull spawn closer to player if wall detected.
+        vTarget = vPos + AngleToVector(fAngle) * 2.0;
+    }
+    location lFinal = Location(oArea, vTarget, 0.0);
+
+    // PHASE 4: STAGGERED EXECUTION
     int nNum = Random(6) + 1;
     int i;
     for (i = 1; i <= nNum; i++)
     {
-        float fStag = i * 0.2;
-        // We use a local string for the ResRef (Replace with your 2DA lookup logic).
+        float fStag = i * 0.25;
+        // ResRef selection logic based on nTier and nSurface goes here.
         string sRes = "nw_wolf001"; 
 
-        DelayCommand(fStag, AssignCommand(oArea, CreateObject(OBJECT_TYPE_CREATURE, sRes, lFinal)));
-        
-        // Add to the GPS List (Phase 5: Registration)
-        float fReg = fStag + 0.5;
-        DelayCommand(fReg, SetLocalObject(oArea, "MG_REG_TARGET", GetNearestObjectByTag(sRes, oPC)));
-        DelayCommand(fReg + 0.01, ExecuteScript("enc_register", oArea));
+        DelayCommand(fStag, SetLocalString(oArea, "MG_SPAWN_RES", sRes));
+        DelayCommand(fStag, SetLocalLocation(oArea, "MG_SPAWN_LOC", lFinal));
+        DelayCommand(fStag + 0.01, ExecuteScript("enc_create_helper", oArea));
     }
+
+    // Mark player active so they don't get double-spawned next pulse.
+    SetLocalInt(oPC, "MG_ENC_ACTIVE", TRUE);
 }
