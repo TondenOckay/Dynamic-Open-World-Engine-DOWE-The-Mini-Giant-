@@ -12,7 +12,7 @@
     DESCRIPTION:
     The primary ignition script for the area mini-server. It identifies the 
     entering player and initiates the Switchboard handshake to begin 
-    registration and heartbeat activation.
+    registration, heartbeat activation, and the Live_NPC testing system.
    ============================================================================
 */
 
@@ -27,11 +27,10 @@ void main()
     object oArea = OBJECT_SELF;
 
     // If it's not a player, we exit immediately to save CPU cycles.
-    if (!GetIsPC(oPC) || GetIsDM(oPC)) return;
+    if (GetIsPC(oPC) == FALSE || GetIsDM(oPC) == TRUE) return;
 
     // PHASE 2: SWITCHBOARD HANDSHAKE (Staggered 0.1s)
-    // Notes: Removed [] syntax to fix 'PARSING CONSTANT VECTOR' error.
-    // We set variables on the area, then call the switchboard.
+    // We set variables on the area, then call the switchboard for registration.
     float fStagger = 0.1;
     DelayCommand(fStagger, SetLocalObject(oArea, "MG_SW_TARGET", oPC));
     DelayCommand(fStagger, SetLocalInt(oArea, "MG_SW_EVENT", 100)); // 100 = Registration Request
@@ -42,4 +41,11 @@ void main()
     // PHASE 3: SERVER STATUS CHECK (Staggered 0.5s)
     // If the server is currently "OFF" (Zero-Waste), we ignite the heartbeat.
     DelayCommand(0.5, ExecuteScript("area_heartbeat", oArea));
+
+    // PHASE 4: LIVE_NPC TESTER IGNITION (Staggered 0.7s)
+    // Notes: This fires the testing system through the switchboard. 
+    // It will only execute if MG_LIVE_NPC_ON is set to TRUE on the area.
+    float fTestStagger = 0.7;
+    DelayCommand(fTestStagger, SetLocalInt(oArea, "MG_SW_EVENT", 400)); // 400 = Live_NPC System
+    DelayCommand(fTestStagger + 0.01, ExecuteScript("area_switchboard", oArea));
 }
