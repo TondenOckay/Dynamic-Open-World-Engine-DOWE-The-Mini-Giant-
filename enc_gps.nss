@@ -16,61 +16,41 @@
    ============================================================================
 */
 
-// --- 2DA REFERENCE NOTES ---
-// // enc_locations.2da - X,Y,Z, ResRef, and Pathing data.
-// // enc_tables.2da - Surface material to ResRef mapping.
-
 void main()
 {
-    // PHASE 1: INITIALIZATION & VALIDATION
     object oArea = OBJECT_SELF;
     int nPop = GetLocalInt(oArea, "MG_POPULATION");
-
-    // Zero-Waste Check: If no players are registered, kill the logic.
     if (nPop <= 0) return;
 
-    // PHASE 2: CREATURE LIST MAINTENANCE (Staggered)
-    // We clean up the list to remove dead or invalid IDs to keep the list lean.
+    // PHASE 1: CREATURE LIST MAINTENANCE (Your cleanup loop)
     int nTotalEnc = GetLocalInt(oArea, "MG_ENC_COUNT");
-    int i;
-    for (i = 1; i <= nTotalEnc; i++)
+    int j;
+    for (j = 1; j <= nTotalEnc; j++)
     {
-        float fStagger = i * 0.05; // 0.05s per creature to flatten CPU spike
-        DelayCommand(fStagger, SetLocalInt(oArea, "MG_CLEANUP_IDX", i));
-        DelayCommand(fStagger + 0.01, ExecuteScript("enc_list_clean", oArea));
+        float fCleanStag = j * 0.05;
+        DelayCommand(fCleanStag, SetLocalInt(oArea, "MG_CLEANUP_IDX", j));
+        DelayCommand(fCleanStag + 0.01, ExecuteScript("enc_list_clean", oArea));
     }
 
-    // PHASE 3: PLAYER SPATIAL SCAN (The Heart of the GPS)
-    // We iterate through the VIP slots 1-100.
+    // PHASE 2: PLAYER SPATIAL SCAN (The Heartbeat Pulse)
+    int i;
     for (i = 1; i <= 100; i++)
     {
         object oPC = GetLocalObject(oArea, "MG_VIP_OBJ_" + IntToString(i));
-        
-        // Skip empty slots or DMs.
-        if (!GetIsObjectValid(oPC) || GetIsDM(oPC)) continue;
 
-        // Spread the processing of each player out by 0.5 seconds.
+        // VOID JUMPING: Skip null objects OR players with no CD Key (crashed).
+        if (!GetIsObjectValid(oPC) || GetPCPublicCDKey(oPC) == "") continue;
+
         float fPlayerStagger = i * 0.5;
 
-        // CHECK A: Is player already in combat?
-        if (GetIsInCombat(oPC)) 
-        {
-             if (GetLocalInt(oArea, "MG_DEBUG_ON"))
-             {
-                DelayCommand(fPlayerStagger, SetLocalString(oArea, "MG_DEBUG_MSG", "GPS: " + GetName(oPC) + " in combat. Skipping."));
-                DelayCommand(fPlayerStagger + 0.01, ExecuteScript("area_debug", oArea));
-             }
-             continue;
-        }
+        // CHECK A: Combat Check
+        if (GetIsInCombat(oPC)) continue;
 
         // CHECK B: 40% Encounter Roll
         if (Random(100) < 40)
         {
-            // Set the target for the Switchboard packet.
             DelayCommand(fPlayerStagger, SetLocalObject(oArea, "MG_SW_TARGET", oPC));
-            DelayCommand(fPlayerStagger, SetLocalInt(oArea, "MG_SW_EVENT", 500)); // 500 = Trigger Spawn Phase
-            
-            // Execute the Spawn Logic through the Switchboard.
+            DelayCommand(fPlayerStagger, SetLocalInt(oArea, "MG_SW_EVENT", 500)); 
             DelayCommand(fPlayerStagger + 0.05, ExecuteScript("area_switchboard", oArea));
         }
     }
