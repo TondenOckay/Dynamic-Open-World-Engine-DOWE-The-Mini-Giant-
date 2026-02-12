@@ -1,5 +1,5 @@
 /* ============================================================================
-    PROJECT: Dynamic Open World Engine (DOWE)
+    PROJECT: Dynamic Open World Engine (DOWE) "The Mini Giant"
     VERSION: 1.0 (Master Build)
     DATE: February 11, 2026
     PLATFORM: Neverwinter Nights: Enhanced Edition (NWN:EE)
@@ -16,19 +16,16 @@
    ============================================================================
 */
 
-#include #include "mud_inc"
+#include "mud_inc"
 
-// Logic: Handles the simulated walking points from the 2DA column
+// PHASE-STAGGERED: Handles simulated movement points for baked-in entities.
 void ExecuteBakedWalk(object oPC, string sPoints) {
     if (sPoints == "****" || sPoints == "") return;
-    
     int i = 0;
     string sWP = GetTokenByCommata(sPoints, i);
     float fDelay = 1.0;
-    
     while (sWP != "") {
-        // Logic: Send a debug or visual cue that the 'baked' NPC is moving
-        // Since the NPC is baked, we notify the PC of the movement context.
+        // Staggered Notification to PC for Zero-Waste world simulation.
         DelayCommand(fDelay, SendMessageToPC(oPC, ">> The entity moves toward waypoint: " + sWP));
         fDelay += 2.0;
         i++;
@@ -37,22 +34,21 @@ void ExecuteBakedWalk(object oPC, string sPoints) {
 }
 
 void main() {
-    // PHASE 1: Data Acquisition
+    // PHASE 1: Data Acquisition & Setup
     object oPC = OBJECT_SELF;
     string sChat = GetStringLowerCase(GetPCChatMessage());
     string s2DA = GetResRef(GetArea(oPC)) + "_npc";
     int nRow = 0;
 
-    // PHASE 2: Zero-Waste 2DA Processing
+    // PHASE 2: Zero-Waste Scrutiny Loop
     while (nRow < 255) {
         string sName = Get2DAString(s2DA, "NPC_Name", nRow);
         if (sName == "") break; 
 
-        // Keyword Search (Case Insensitive / Sentence Detection)
         string sKey = GetStringLowerCase(Get2DAString(s2DA, "Trigger", nRow));
         if (FindSubString(sChat, sKey) != -1) {
             
-            // Distance Check (Proximity to Baked Coordinates)
+            // Distance Calculation (Proximity validation)
             vector vL;
             vL.x = StringToFloat(Get2DAString(s2DA, "Loc_X", nRow));
             vL.y = StringToFloat(Get2DAString(s2DA, "Loc_Y", nRow));
@@ -64,37 +60,30 @@ void main() {
                 int nFactReq = StringToInt(Get2DAString(s2DA, "FactionReq", nRow));
                 string sItemReq = Get2DAString(s2DA, "NeededItems", nRow);
 
-                // Faction Check
-                // Note: Standard NWN Factions (0=PC, 1=Hostile, 2=Commoner, 3=Merchant)
-                // Adjust this logic if using custom DOWE Faction IDs.
+                // Reputation Gate
                 if (nFactReq != 0 && GetStandardFactionReputation(nFactReq, oPC) < 50) {
-                    SendMessageToPC(oPC, sName + ": I do not trust your kind enough to speak.");
+                    SendMessageToPC(oPC, sName + ": I do not trust you enough to speak.");
                     return;
                 }
 
-                // Multi-Item Requirement Check (via dowe_string_inc)
+                // Inventory Validation via mud_inc
                 if (!GetHasAllTokens(oPC, sItemReq)) {
-                    SendMessageToPC(oPC, sName + ": You lack the materials ("+sItemReq+") I require.");
+                    SendMessageToPC(oPC, sName + ": You lack the materials required.");
                     return;
                 }
 
-                // PHASE 4: Execution (Response, Rewards, Movement, Shops)
+                // PHASE 4: Staggered Execution
                 SendMessageToPC(oPC, sName + ": " + Get2DAString(s2DA, "Response", nRow));
-                
-                // Give Multi-Item Rewards
                 CreateAllTokens(Get2DAString(s2DA, "GiveItems", nRow), oPC);
-                
-                // Trigger Movement Points (Staggered)
                 ExecuteBakedWalk(oPC, Get2DAString(s2DA, "WalkPoints", nRow));
                 
-                // Open Shop if tag exists
+                // Store Logic Integration
                 string sShop = Get2DAString(s2DA, "ShopTag", nRow);
                 if (sShop != "****") {
                     object oStore = GetNearestObjectByTag(sShop);
                     if (GetIsObjectValid(oStore)) OpenStore(oStore, oPC);
                 }
-                
-                return; // Match found and executed.
+                return; 
             }
         }
         nRow++;
