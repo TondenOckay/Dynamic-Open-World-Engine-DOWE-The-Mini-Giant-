@@ -16,7 +16,7 @@
    ============================================================================
 */
 
-#include "dowe_string_inc"
+#include #include "mud_inc"
 
 // Logic: Handles the simulated walking points from the 2DA column
 void ExecuteBakedWalk(object oPC, string sPoints) {
